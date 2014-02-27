@@ -18,6 +18,8 @@
 package org.apache.spark.executor
 
 import java.nio.ByteBuffer
+import java.net.InetAddress
+import java.security.PrivilegedExceptionAction
 
 import akka.actor._
 import akka.remote._
@@ -26,7 +28,8 @@ import org.apache.spark.{SparkConf, SparkContext, Logging}
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.deploy.worker.WorkerWatcher
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
-import org.apache.spark.util.{AkkaUtils, Utils}
+import org.apache.spark.util.{AkkaUtils, Utils, SparkSecurityUtils}
+import org.apache.hadoop.security.{UserGroupInformation,SecurityUtil}
 
 private[spark] class CoarseGrainedExecutorBackend(
     driverUrl: String,
@@ -91,8 +94,33 @@ private[spark] class CoarseGrainedExecutorBackend(
   }
 }
 
-private[spark] object CoarseGrainedExecutorBackend {
-  def run(driverUrl: String, executorId: String, hostname: String, cores: Int,
+private[spark] object CoarseGrainedExecutorBackend extends Logging{
+  
+   def run(driverUrl: String, executorId: String, hostname: String, cores: Int, workerUrl: Option[String]) {
+    if (UserGroupInformation.isSecurityEnabled()) {
+      val jobUserName = System.getProperty("user.name","<unknown>")
+      logInfo("Kerberos mode, Running job as user " + jobUserName)
+      
+      val workerPrincipal = SecurityUtil.getServerPrincipal(SparkSecurityUtils.getWorkerKerberosPrincipal, InetAddress.getLocalHost());
+      UserGroupInformation.loginUserFromKeytab(workerPrincipal, SparkSecurityUtils.getWorkerKeytabPath)
+      val ugi: UserGroupInformation = UserGroupInformation.createProxyUser(jobUserName, UserGroupInformation.getLoginUser())
+      ugi.doAs(new PrivilegedExceptionAction[AnyRef] {
+        def run: AnyRef = {
+          runImpl(driverUrl, executorId, hostname, cores, workerUrl)
+          return null
+        }
+      })
+    }
+    else {
+      val jobUserName = System.getProperty("user.name","<unknown>")
+      logInfo("Simple mode, Running job as user " + jobUserName)
+      runImpl(driverUrl, executorId, hostname, cores, workerUrl)
+    }
+  }
+  
+  
+  
+  def runImpl(driverUrl: String, executorId: String, hostname: String, cores: Int,
           workerUrl: Option[String]) {
     // Debug code
     Utils.checkHost(hostname)

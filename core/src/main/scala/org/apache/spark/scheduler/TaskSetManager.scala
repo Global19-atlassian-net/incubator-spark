@@ -444,6 +444,10 @@ private[spark] class TaskSetManager(
 
       // Mark successful and stop if all the tasks have succeeded.
       tasksSuccessful += 1
+      if ((tasksSuccessful * 100 / numTasks) % 10 == 0) {
+        System.err.println("		Task progress: " + tasksSuccessful * 100 / numTasks + "%")
+      }
+      
       successful(index) = true
       if (tasksSuccessful == numTasks) {
         sched.taskSetFinished(this)

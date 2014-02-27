@@ -19,6 +19,7 @@ package org.apache.spark.deploy.master
 
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.net.InetAddress
 
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.concurrent.Await
@@ -37,8 +38,9 @@ import org.apache.spark.deploy.DeployMessages._
 import org.apache.spark.deploy.master.MasterMessages._
 import org.apache.spark.deploy.master.ui.MasterWebUI
 import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.util.{AkkaUtils, Utils}
+import org.apache.spark.util.{AkkaUtils, Utils, SparkSecurityUtils}
 import org.apache.spark.deploy.master.DriverState.DriverState
+import org.apache.hadoop.security.{UserGroupInformation, SecurityUtil}
 
 private[spark] class Master(host: String, port: Int, webUiPort: Int) extends Actor with Logging {
   import context.dispatcher   // to use Akka's scheduler.schedule()
@@ -168,7 +170,7 @@ private[spark] class Master(host: String, port: Int, webUiPort: Int) extends Act
 
     case RegisterWorker(id, workerHost, workerPort, cores, memory, workerWebUiPort, publicAddress) => {
       logInfo("Registering worker %s:%d with %d cores, %s RAM".format(
-        host, workerPort, cores, Utils.megabytesToString(memory)))
+        workerHost, workerPort, cores, Utils.megabytesToString(memory)))
       if (state == RecoveryState.STANDBY) {
         // ignore, don't send response
       } else if (idToWorker.contains(id)) {
@@ -685,6 +687,11 @@ private[spark] object Master {
   val sparkUrlRegex = "spark://([^:]+):([0-9]+)".r
 
   def main(argStrings: Array[String]) {
+    if (UserGroupInformation.isSecurityEnabled()) {
+    	val masterPrincipal = SecurityUtil.getServerPrincipal(SparkSecurityUtils.getMasterKerberosPrincipal, InetAddress.getLocalHost());
+    	UserGroupInformation.loginUserFromKeytab(masterPrincipal, SparkSecurityUtils.getMasterKeytabPath)
+    }
+    
     val conf = new SparkConf
     val args = new MasterArguments(argStrings, conf)
     val (actorSystem, _, _) = startSystemAndActor(args.host, args.port, args.webUiPort, conf)

@@ -733,6 +733,7 @@ class DAGScheduler(
         val missing = getMissingParentStages(stage).sortBy(_.id)
         logDebug("missing: " + missing)
         if (missing == Nil) {
+          System.err.println("Submitting " + stage + " (" + stage.rdd + "), which has no missing parents");
           logInfo("Submitting " + stage + " (" + stage.rdd + "), which has no missing parents")
           submitMissingTasks(stage, jobId.get)
           running += stage
@@ -827,6 +828,7 @@ class DAGScheduler(
         case Some(t) => "%.03f".format((System.currentTimeMillis() - t) / 1000.0)
         case _ => "Unknown"
       }
+      System.err.println("%s (%s) finished in %s s".format(stage, stage.name, serviceTime))
       logInfo("%s (%s) finished in %s s".format(stage, stage.name, serviceTime))
       stageToInfos(stage).completionTime = Some(System.currentTimeMillis())
       listenerBus.post(SparkListenerStageCompleted(stageToInfos(stage)))

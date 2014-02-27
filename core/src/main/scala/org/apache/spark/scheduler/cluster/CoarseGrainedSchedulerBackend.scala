@@ -19,20 +19,36 @@ package org.apache.spark.scheduler.cluster
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.Array.fallbackCanBuildFrom
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
+import scala.collection.mutable.HashSet
 import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.DurationLong
 
-import akka.actor._
-import akka.pattern.ask
-import akka.remote.{DisassociatedEvent, RemotingLifecycleEvent}
-
-import org.apache.spark.{SparkException, Logging, TaskState}
-import org.apache.spark.{Logging, SparkException, TaskState}
-import org.apache.spark.scheduler.{TaskSchedulerImpl, SchedulerBackend, SlaveLost, TaskDescription,
-  WorkerOffer}
+import org.apache.spark.Logging
+import org.apache.spark.SparkException
+import org.apache.spark.TaskState
+import org.apache.spark.scheduler.SchedulerBackend
+import org.apache.spark.scheduler.SlaveLost
+import org.apache.spark.scheduler.TaskDescription
+import org.apache.spark.scheduler.TaskSchedulerImpl
+import org.apache.spark.scheduler.WorkerOffer
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
-import org.apache.spark.util.{AkkaUtils, Utils}
+import org.apache.spark.util.AkkaUtils
+import org.apache.spark.util.Utils
+
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Address
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.remote.DisassociatedEvent
+import akka.remote.RemotingLifecycleEvent
+import akka.util.Timeout.durationToTimeout
 
 /**
  * A scheduler backend that waits for coarse grained executors to connect to it through Akka.

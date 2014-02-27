@@ -847,10 +847,12 @@ class SparkContext(
       resultHandler: (Int, U) => Unit) {
     val callSite = getCallSite
     val cleanedFunc = clean(func)
-    logInfo("Starting job: " + callSite)
+    System.err.println("Starting job " + callSite + " rdd:" + rdd.toString)
+    logInfo("Starting job: " + callSite) 
     val start = System.nanoTime
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, allowLocal,
       resultHandler, localProperties.get)
+    System.err.println("Job finished: " + callSite + ", took " + (System.nanoTime - start) / 1e9 + " s")
     logInfo("Job finished: " + callSite + ", took " + (System.nanoTime - start) / 1e9 + " s")
     rdd.doCheckpoint()
   }

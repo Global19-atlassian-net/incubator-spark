@@ -20,6 +20,7 @@ package org.apache.spark.deploy.worker
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.net.InetAddress
 
 import scala.collection.mutable.HashMap
 import scala.concurrent.duration._
@@ -34,7 +35,9 @@ import org.apache.spark.deploy.master.{DriverState, Master}
 import org.apache.spark.deploy.master.DriverState.DriverState
 import org.apache.spark.deploy.worker.ui.WorkerWebUI
 import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.util.{AkkaUtils, Utils}
+import org.apache.spark.util.{AkkaUtils, Utils, SparkSecurityUtils}
+import org.apache.hadoop.security.{UserGroupInformation, SecurityUtil}
+
 
 /**
   * @param masterUrls Each url should look like spark://host:port.
@@ -322,6 +325,10 @@ private[spark] class Worker(
 private[spark] object Worker {
 
   def main(argStrings: Array[String]) {
+    if (UserGroupInformation.isSecurityEnabled()) {
+      val workerPrincipal = SecurityUtil.getServerPrincipal(SparkSecurityUtils.getWorkerKerberosPrincipal, InetAddress.getLocalHost());
+      UserGroupInformation.loginUserFromKeytab(workerPrincipal, SparkSecurityUtils.getWorkerKeytabPath)
+    }
     val args = new WorkerArguments(argStrings)
     val (actorSystem, _) = startSystemAndActor(args.host, args.port, args.webUiPort, args.cores,
       args.memory, args.masters, args.workDir)
