@@ -232,14 +232,18 @@ private[spark] class Worker(
       }
       val fullId = appId + "/" + execId
       if (ExecutorState.isFinished(state)) {
-        val executor = executors(fullId)
-        logInfo("Executor " + fullId + " finished with state " + state +
-          message.map(" message " + _).getOrElse("") +
-          exitStatus.map(" exitStatus " + _).getOrElse(""))
-        executors -= fullId
-        finishedExecutors(fullId) = executor
-        coresUsed -= executor.cores
-        memoryUsed -= executor.memory
+        if (executors.contains(fullId)) {
+	        val executor = executors(fullId)
+	        logInfo("Executor " + fullId + " finished with state " + state +
+	          message.map(" message " + _).getOrElse("") +
+	          exitStatus.map(" exitStatus " + _).getOrElse(""))
+	        executors -= fullId
+	        finishedExecutors(fullId) = executor
+	        coresUsed -= executor.cores
+	        memoryUsed -= executor.memory
+        } else {
+          logInfo("Didn't found fullId " + fullId + " in worker's executors")
+        }
       }
 
     case KillExecutor(masterUrl, appId, execId) =>

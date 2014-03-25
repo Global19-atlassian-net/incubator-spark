@@ -51,15 +51,17 @@ object CommandUtils extends Logging {
       .getOrElse(Nil)
     val workerLocalOpts = Option(getenv("SPARK_JAVA_OPTS")).map(Utils.splitCommandString).getOrElse(Nil)
     val userOpts = getEnv("SPARK_JAVA_OPTS", command).map(Utils.splitCommandString).getOrElse(Nil)
+    val userExecutorOpts = getEnv("SPARK_EXECUTOR_OPTS", command).map(Utils.splitCommandString).getOrElse(Nil)
+    val executorOpts = Option(getenv("SPARK_EXECUTOR_OPTS")).map(Utils.splitCommandString).getOrElse(Nil)
     val memoryOpts = Seq(s"-Xms${memory}M", s"-Xmx${memory}M")
-
+    
     // Figure out our classpath with the external compute-classpath script
     val ext = if (System.getProperty("os.name").startsWith("Windows")) ".cmd" else ".sh"
     val classPath = Utils.executeAndGetOutput(
       Seq(sparkHome + "/bin/compute-classpath" + ext),
       extraEnvironment=command.environment)
 
-    Seq("-cp", classPath) ++ libraryOpts ++ workerLocalOpts ++ userOpts ++ memoryOpts
+    Seq("-cp", classPath) ++ libraryOpts ++ workerLocalOpts ++ userOpts ++ userExecutorOpts ++ executorOpts ++ memoryOpts
   }
 
   /** Spawn a thread that will redirect a given stream to a file */

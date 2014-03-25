@@ -19,6 +19,7 @@ package org.apache.spark.executor
 
 import java.io.File
 import java.lang.management.ManagementFactory
+import java.lang.System._
 import java.nio.ByteBuffer
 import java.util.concurrent._
 
@@ -59,6 +60,14 @@ private[spark] class Executor(
   // Set spark.* properties from executor arg
   val conf = new SparkConf(true)
   conf.setAll(properties)
+  
+  // If we set SPARK_EXECUTOR_OPTS and spark.local.dir, the executor should use local value to 
+  // initialize DiskBlockManager instead of value comes from driver 
+  if (getenv("SPARK_EXECUTOR_OPTS") != Nil && getProperty("spark.local.dir") != Nil) {
+    logInfo("SPARK_EXECUTOR_OPTS is " + getenv("SPARK_EXECUTOR_OPTS"))
+    logInfo("spark.local.dir is " + getProperty("spark.local.dir"))
+    conf.set("spark.local.dir", getProperty("spark.local.dir"))
+  }
 
   // If we are in yarn mode, systems can have different disk layouts so we must set it
   // to what Yarn on this system said was available. This will be used later when SparkEnv

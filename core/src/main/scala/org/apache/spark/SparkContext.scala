@@ -36,6 +36,7 @@ import org.apache.hadoop.mapred.{FileInputFormat, InputFormat, JobConf, Sequence
   TextInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => NewInputFormat, Job => NewHadoopJob}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => NewFileInputFormat}
+import org.apache.hadoop.security.UserGroupInformation
 import org.apache.mesos.MesosNativeLibrary
 
 import org.apache.spark.deploy.{LocalSparkCluster, SparkHadoopUtil}
@@ -173,7 +174,7 @@ class SparkContext(
   // Environment variables to pass to our executors
   private[spark] val executorEnvs = HashMap[String, String]()
   // Note: SPARK_MEM is included for Mesos, but overwritten for standalone mode in ExecutorRunner
-  for (key <- Seq("SPARK_CLASSPATH", "SPARK_LIBRARY_PATH", "SPARK_JAVA_OPTS");
+  for (key <- Seq("SPARK_CLASSPATH", "SPARK_LIBRARY_PATH", "SPARK_JAVA_OPTS", "SPARK_EXECUTOR_OPTS");
       value <- Option(System.getenv(key))) {
     executorEnvs(key) = value
   }
@@ -189,7 +190,9 @@ class SparkContext(
 
   // Set SPARK_USER for user who is running SparkContext.
   val sparkUser = Option {
-    Option(System.getProperty("user.name")).getOrElse(System.getenv("SPARK_USER"))
+    Option {
+      Option(UserGroupInformation.getCurrentUser().getShortUserName()).getOrElse(System.getenv("SPARK_USER"))
+    }.getOrElse(System.getProperty("user.name"))
   }.getOrElse {
     SparkContext.SPARK_UNKNOWN_USER
   }
